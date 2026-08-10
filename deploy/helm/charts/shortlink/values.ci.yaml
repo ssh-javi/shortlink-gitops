@@ -10,12 +10,12 @@
 
 image:
   repository: ghcr.io/ssh-javi/shortlink-gitops/api
-  tag: sha-9bedde9091e6193a069ee63a712543b78c97e5c2
+  tag: sha-ad30a570623199a5222087fc402cdf62f108bd56
   pullPolicy: IfNotPresent
 
 webImage:
   repository: ghcr.io/ssh-javi/shortlink-gitops/web
-  tag: sha-9bedde9091e6193a069ee63a712543b78c97e5c2
+  tag: sha-ad30a570623199a5222087fc402cdf62f108bd56
   pullPolicy: IfNotPresent
 
 # --- Demo: canary rollback ------------------------------------------------
