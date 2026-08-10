@@ -10,10 +10,10 @@
 
 image:
   repository: ghcr.io/ssh-javi/shortlink-gitops/api
-  tag: sha-b4a96b6032bc8baa28ffa640285c9fa8854d1e30
+  tag: sha-02b7321adde50fc6f1d531510b8c879ec2c84bf7
   pullPolicy: IfNotPresent
 
 webImage:
   repository: ghcr.io/ssh-javi/shortlink-gitops/web
-  tag: sha-b4a96b6032bc8baa28ffa640285c9fa8854d1e30
+  tag: sha-02b7321adde50fc6f1d531510b8c879ec2c84bf7
   pullPolicy: IfNotPresent
