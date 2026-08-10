@@ -17,11 +17,3 @@ webImage:
   repository: ghcr.io/ssh-javi/shortlink-gitops/web
   tag: sha-0ce86ca5f1353979e64c60a0e1d57019ac3a61a6
   pullPolicy: IfNotPresent
-
-# --- Demo: canary rollback ------------------------------------------------
-# Simulate a broken release: 80% of API business requests fail with 500.
-# The web canary's analysis will measure the elevated error rate and Argo
-# Rollouts will abort + roll back automatically. Set to "0" to recover.
-api:
-  env:
-    SIMULATE_ERROR_RATE: "80"
