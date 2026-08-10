@@ -59,13 +59,15 @@ spec:
           emptyDir: {}
   # Progressive delivery: canary with real traffic split (nginx ingress) and
   # automatic metric analysis. Steps come from values.yaml (web.canary.steps).
+  # Note: stableService/canaryService live under strategy.canary (NOT inside
+  # trafficRouting.nginx) per the Argo Rollouts API.
   strategy:
     canary:
+      stableService: {{ include "shortlink.fullname" . }}-web
+      canaryService: {{ include "shortlink.fullname" . }}-web-canary
       trafficRouting:
         nginx:
           stableIngress: {{ include "shortlink.fullname" . }}
-          stableService: {{ include "shortlink.fullname" . }}-web
-          canaryService: {{ include "shortlink.fullname" . }}-web-canary
       analysis:
         templates:
           - templateName: {{ include "shortlink.fullname" . }}-error-rate
