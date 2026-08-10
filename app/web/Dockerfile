@@ -3,7 +3,7 @@
 # nginx proxies /api/* and /<slug> to the API service in-cluster.
 # =============================================================================
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.30-alpine
 
 # Non-root by default: the image runs as uid 101 without a USER directive.
 
