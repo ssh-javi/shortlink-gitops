@@ -1,0 +1,29 @@
+{
+  "name": "shortlink-api",
+  "version": "1.0.0",
+  "description": "URL shortener API - demo app for the GitOps DevOps portfolio project",
+  "main": "src/server.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest --runInBand",
+    "lint": "node --check src/server.js && node --check src/app.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.4.1",
+    "nanoid": "^3.3.7",
+    "pg": "^8.13.0",
+    "prom-client": "^15.1.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  }
+}

@@ -1,0 +1,19 @@
+# =============================================================================
+# CI/CD overrides — applied by the GitOps "promote" workflow.
+# When CI pushes a new image to ghcr.io it updates the `tag` values below and
+# commits them; ArgoCD detects the change and rolls out the new version.
+#
+# In GitHub mode (default), 01-shortlink.yaml includes this file so ArgoCD
+# pulls from ghcr.io.  In local mode (--local) this file is stripped so the
+# cluster uses locally-built :dev images instead.
+# =============================================================================
+
+image:
+  repository: ghcr.io/ssh-javi/shortlink-gitops/api
+  tag: latest
+  pullPolicy: IfNotPresent
+
+webImage:
+  repository: ghcr.io/ssh-javi/shortlink-gitops/web
+  tag: latest
+  pullPolicy: IfNotPresent

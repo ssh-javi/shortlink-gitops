@@ -1,0 +1,39 @@
+# Helm values for the argo-cd chart (installed by scripts/setup.sh).
+# Leaned-out config for a local demo cluster.
+
+dex:
+  enabled: false
+
+redis-ha:
+  enabled: false
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+server:
+  # Serve the UI/API over plain HTTP so `port-forward` just works (demo only)
+  insecure: true
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+configs:
+  params:
+    server.insecure: true
+  cm:
+    # Reconcile quickly so demos of the GitOps loop feel snappy
+    timeout.reconciliation: 60s

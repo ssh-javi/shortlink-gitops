@@ -1,0 +1,28 @@
+# =============================================================================
+# App-of-apps: this root Application watches the deploy/argocd/apps directory
+# and manages all child Applications (shortlink, observability, dashboards).
+#
+# Repositorio real: ArgoCD sincroniza desde aquí. Cámbialo si haces fork del proyecto.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shortlink-apps
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: shortlink
+  source:
+    repoURL: https://github.com/ssh-javi/shortlink-gitops.git
+    targetRevision: main
+    path: deploy/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

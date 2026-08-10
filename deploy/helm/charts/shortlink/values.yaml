@@ -1,0 +1,126 @@
+# =============================================================================
+# ShortLink - default values
+# These values target a LOCAL minikube/docker-kind demo:
+# images are built locally and loaded into the cluster.
+# CI/CD pushes to ghcr.io and overrides via values.ci.yaml (GitOps flow).
+# =============================================================================
+
+# Prefijo estable para todos los recursos (shortlink-api, shortlink-web, ...)
+fullnameOverride: shortlink
+
+# --- Images ------------------------------------------------------------------
+image:
+  repository: shortlink-api   # local image (built by scripts/setup.sh)
+  tag: dev
+  pullPolicy: IfNotPresent
+
+webImage:
+  repository: shortlink-web   # local image (built by scripts/setup.sh)
+  tag: dev
+  pullPolicy: IfNotPresent
+
+# --- API ---------------------------------------------------------------------
+api:
+  port: 3000
+  metricsPort: 9100
+  replicaCount: 2
+  env:
+    LOG_LEVEL: info
+    SLUG_LENGTH: "7"
+    # Used only to build the "shortUrl" shown by the API response.
+    BASE_URL: http://localhost:8081
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  # Tolerate taints so the workload can also land on the control-plane node
+  # (helpful on single-node clusters like minikube with fewer nodes).
+  tolerations: []
+
+# --- Web ---------------------------------------------------------------------
+web:
+  port: 80          # Service port
+  targetPort: 8080  # Container port (unprivileged nginx)
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+# --- PostgreSQL --------------------------------------------------------------
+# DEMO ONLY: the password lives in values.yaml on purpose so the whole stack
+# is reproducible with zero external dependencies. For anything real, use
+# External Secrets / SOPS (see docs/DECISIONS.md).
+postgres:
+  image: postgres:16-alpine
+  user: shortlink
+  database: shortlink
+  password: shortlink
+  storage: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# --- Redis -------------------------------------------------------------------
+redis:
+  image: redis:7-alpine
+  maxmemory: 64mb
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 250m
+      memory: 192Mi
+
+# --- Ingress -----------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  host: shortlink.local
+  annotations: {}
+
+# --- Autoscaling & resilience -----------------------------------------------
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# --- Observability -----------------------------------------------------------
+# ServiceMonitor is picked up by the Prometheus Operator via the
+# `release: prometheus-stack` label (see deploy/monitoring values).
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+
+# --- Security ----------------------------------------------------------------
+serviceAccount:
+  create: true
+  name: shortlink-api
+
+# NetworkPolicy requires a CNI with policy support (e.g. --cni=cilium).
+# Disabled by default so the demo works on any cluster.
+networkPolicy:
+  enabled: false
+
+podSecurityContext:
+  fsGroup: 1000
+
+# Extra labels applied to all resources (e.g. for GitOps tooling)
+extraLabels: {}

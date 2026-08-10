@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: shortlink
+  namespace: argocd
+spec:
+  description: >-
+    Proyecto GitOps ShortLink. Agrupa la app (shortlink), el stack de
+    observabilidad (kube-prometheus-stack) y los dashboards de Grafana.
+  # Fuentes permitidas: repos git y repos helm. El proyecto demo permite '*'
+  # para simplificar; en producción se restringiría a repositorios concretos.
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: shortlink
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    # kube-prometheus-stack despliega kube-state-metrics y node-exporter
+    # por defecto en kube-system
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+  # kube-prometheus-stack crea recursos cluster-wide (CRDs, ClusterRoles).
+  # Solo para el cluster demo local.
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles: []

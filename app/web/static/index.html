@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShortLink · Demo DevOps</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+  </div>
+
+  <main class="shell">
+    <header class="hero">
+      <div class="badge">
+        <span class="pulse-dot"></span>
+        Demo GitOps · CI/CD · Kubernetes · Observabilidad
+      </div>
+      <h1 class="logo">
+        <span class="logo-icon">⚡</span> ShortLink
+      </h1>
+      <p class="tagline">
+        Acortador de URLs desplegado con <strong>ArgoCD</strong> sobre
+        <strong>Kubernetes</strong>, monitoreado con <strong>Prometheus</strong> y
+        <strong>Grafana</strong>. Cada cambio en Git llega a producción solo.
+      </p>
+    </header>
+
+    <section class="card form-card">
+      <form id="shorten-form" autocomplete="off">
+        <div class="input-row">
+          <input
+            id="url-input"
+            type="url"
+            placeholder="Pega aquí una URL larga…  https://ejemplo.com/ruta/muy/larga"
+            required
+          />
+          <input
+            id="slug-input"
+            type="text"
+            placeholder="alias (opcional)"
+            maxlength="20"
+            pattern="[a-zA-Z0-9_-]{3,20}"
+            title="3-20 caracteres: letras, números, guiones"
+          />
+          <button id="shorten-btn" type="submit">Acortar</button>
+        </div>
+      </form>
+
+      <div id="result" class="result hidden">
+        <span class="result-label">¡Listo! Tu enlace corto:</span>
+        <div class="result-row">
+          <a id="short-url" href="#" target="_blank" rel="noopener"></a>
+          <button id="copy-btn" class="ghost-btn" type="button" title="Copiar">Copiar</button>
+        </div>
+      </div>
+
+      <div id="toast" class="toast hidden" role="status"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Enlaces recientes</h2>
+        <span id="link-count" class="count-pill"></span>
+      </div>
+      <ul id="links-list" class="links-list">
+        <li class="empty-state">Todavía no hay enlaces. ¡Acorta el primero! 🚀</li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      <p>
+        Proyecto de <strong>jmartinez.sh | DevOps Engineer</strong> · GitHub Actions →
+        ArgoCD → Kubernetes · Prometheus + Grafana
+      </p>
+      <p class="muted">API /health · Métricas en :9100/metrics</p>
+    </footer>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

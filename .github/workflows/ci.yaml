@@ -1,0 +1,168 @@
+# =============================================================================
+# CI - integración continua (gratis en repos públicos de GitHub).
+#
+# 1. test                -> unit tests de la API
+# 2. validate-manifests  -> helm lint + kubeconform sobre el render de Helm
+# 3. scan                -> Trivy (vulnerabilidades) sobre el filesystem
+# 4. build-and-push      -> imágenes multi-stage a ghcr.io (solo main)
+# 5. promote             -> GitOps: actualiza el tag en values.ci.yaml
+#
+# El despliegue NO lo hace CI: ArgoCD detecta el cambio en Git y sincroniza.
+# Ese es el corazón del flujo GitOps (ver docs/ARCHITECTURE.md).
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------- test ----
+  test:
+    name: Test API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/api/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run unit tests
+        run: npm test
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  # ------------------------------------------------- validate-manifests ----
+  validate-manifests:
+    name: Validate Helm + manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Render Helm chart
+        run: helm template shortlink deploy/helm/charts/shortlink --namespace shortlink > rendered.yaml
+      - name: Validate with kubeconform
+        uses: docker://ghcr.io/yannh/kubeconform:latest
+        with:
+          args: -strict -summary -ignore-missing-schemas rendered.yaml
+      - name: Validate ArgoCD manifests
+        uses: docker://ghcr.io/yannh/kubeconform:latest
+        with:
+          args: -strict -summary -ignore-missing-schemas deploy/argocd/project.yaml deploy/argocd/apps/
+      - name: Validate dashboards kustomization
+        run: |
+          curl -fsSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz -o /tmp/kustomize.tgz
+          tar -xzf /tmp/kustomize.tgz -C /tmp
+          /tmp/kustomize build deploy/monitoring/grafana-dashboards > /dev/null
+
+  # ------------------------------------------------------------------ scan ----
+  scan:
+    name: Trivy scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+  # ------------------------------------------------------- build-and-push ----
+  build-and-push:
+    name: Build & push images (ghcr.io)
+    needs: [test, validate-manifests]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      api_image: ${{ steps.meta-api.outputs.tags }}
+      web_image: ${{ steps.meta-web.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push API image
+        id: meta-api
+        uses: docker/build-push-action@v6
+        with:
+          context: app/api
+          push: true
+          load: true
+          tags: |
+            ghcr.io/${{ github.repository }}/api:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository }}/api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push Web image
+        id: meta-web
+        uses: docker/build-push-action@v6
+        with:
+          context: app/web
+          push: true
+          load: true
+          tags: |
+            ghcr.io/${{ github.repository }}/web:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository }}/web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy image scan (API)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/api:sha-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          ignore-unfixed: true
+
+      - name: Trivy image scan (Web)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/web:sha-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          ignore-unfixed: true
+
+  # ---------------------------------------------------------------- promote ----
+  promote:
+    name: Promote (GitOps)
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update desired image tag in Git
+        run: ./scripts/update-image-tag.sh sha-${{ github.sha }}
+      - name: Commit promoted state
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(ci): promote image sha-${{ github.sha }} [skip ci]"
+          file_pattern: deploy/helm/charts/shortlink/values.ci.yaml
+          commit_user_name: "GitOps Bot"
+          commit_user_email: "gitops-bot@users.noreply.github.com"

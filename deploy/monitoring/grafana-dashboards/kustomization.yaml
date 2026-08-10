@@ -1,0 +1,14 @@
+# Genera el ConfigMap de dashboards para el sidecar de Grafana.
+# - disableNameSuffixHash: el sidecar de Grafana espera el nombre exacto
+#   "grafana-dashboards-shortlink" (referenciado en kube-prometheus-stack-values).
+# - labels grafana_dashboard: el sidecar solo importa CM con esta label.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: grafana-dashboards-shortlink
+    files:
+      - dashboards/shortlink-overview.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"

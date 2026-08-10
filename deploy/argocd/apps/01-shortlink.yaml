@@ -1,0 +1,37 @@
+# Application "shortlink": despliega el Helm chart de la app en el namespace
+# shortlink. En modo local (setup.sh) usa values.yaml con imagenes :dev.
+# En CI (values.ci.yaml) ArgoCD recibe los tags de ghcr.io actualizados por Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shortlink
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: shortlink
+  source:
+    repoURL: https://github.com/ssh-javi/shortlink-gitops.git
+    targetRevision: main
+    path: deploy/helm/charts/shortlink
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.ci.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shortlink
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    # Reintenta el sync automático: resuelve la carrera con la app
+    # observability (los CRDs de monitoring llegan después de shortlink).
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true

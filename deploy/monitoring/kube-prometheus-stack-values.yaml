@@ -1,0 +1,135 @@
+# =============================================================================
+# Values de kube-prometheus-stack para el demo local.
+# Ajustado para correr holgado en minikube (RAM limitada) manteniendo todo el
+# valor de negocio: Prometheus + Grafana + Alertmanager + exporters.
+# =============================================================================
+
+# --- Recursos reducidos para minikube ----------------------------------------
+prometheus:
+  prometheusSpec:
+    retention: 48h
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    # Scrapea ServiceMonitors de todos los namespaces, filtrando por label.
+    serviceMonitorSelector:
+      matchLabels:
+        release: prometheus-stack
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    # Storage efímero: suficiente para el demo (evita PVs adicionales)
+    storageSpec: null
+    enableAdminAPI: false
+
+# --- Alertmanager ------------------------------------------------------------
+alertmanager:
+  enabled: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: "null"
+      routes:
+        - matchers:
+            - severity =~ "critical|warning"
+          receiver: "null"
+    receivers:
+      - name: "null"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# --- Grafana -----------------------------------------------------------------
+grafana:
+  adminPassword: admin
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+  dashboardsConfigMaps:
+    # ConfigMap generado por la app ArgoCD "grafana-dashboards"
+    shortlink: grafana-dashboards-shortlink
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# --- Exporters (recursos mínimos) --------------------------------------------
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 5m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 5m
+      memory: 64Mi
+    limits:
+      cpu: 50m
+      memory: 128Mi
+
+# --- Alertas adicionales de la app ShortLink ---------------------------------
+# Se genera una PrometheusRule con reglas específicas de negocio.
+additionalPrometheusRulesMap:
+  shortlink:
+    groups:
+      - name: shortlink
+        rules:
+          - alert: ShortlinkHighErrorRate
+            expr: |
+              sum(rate(http_requests_total{namespace="shortlink", code=~"5.."}[5m]))
+                / clamp_min(sum(rate(http_requests_total{namespace="shortlink"}[5m])), 0.001)
+              > 0.05
+            for: 2m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "ShortLink API error rate > 5% (actual: {{ $value | humanizePercentage }})"
+              description: "La API de ShortLink está devolviendo demasiados errores 5xx. Revisa los pods: kubectl -n shortlink get pods"
+          - alert: ShortlinkHighLatency
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(http_request_duration_seconds_bucket{namespace="shortlink"}[5m])) by (le)
+              ) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "ShortLink API p95 latency > 500ms"
+              description: "La latencia p95 supera los 500ms durante 5 minutos. Posible cuello de botella en BD o Redis."
+          - alert: ShortlinkVisitsDrop
+            expr: |
+              sum(rate(shortlink_visits_total[10m]))
+                / clamp_min(sum(rate(shortlink_visits_total[10m] offset 1h)), 0.001)
+              < 0.2
+            for: 10m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "Caída drástica de visitas"
+              description: "El tráfico de visitas cayó un 80% vs la hora anterior. ¿Ingress caído o DNS del host?"

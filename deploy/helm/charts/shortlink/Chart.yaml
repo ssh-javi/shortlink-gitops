@@ -1,0 +1,17 @@
+apiVersion: v2
+name: shortlink
+description: >-
+  ShortLink - URL shortener microservice stack (API + Web + PostgreSQL + Redis).
+  Reference implementation for a GitOps-driven DevOps portfolio project.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+kubeVersion: ">=1.26.0"
+keywords:
+  - devops
+  - gitops
+  - kubernetes
+  - microservices
+home: https://github.com/ssh-javi/shortlink-gitops
+sources:
+  - https://github.com/ssh-javi/shortlink-gitops

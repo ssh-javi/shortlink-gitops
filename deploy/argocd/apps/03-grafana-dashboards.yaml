@@ -1,0 +1,23 @@
+# Application "grafana-dashboards": genera el ConfigMap de dashboards de
+# Grafana a partir de los JSON versionados en Git (kustomize).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: shortlink
+  source:
+    repoURL: https://github.com/ssh-javi/shortlink-gitops.git
+    targetRevision: main
+    path: deploy/monitoring/grafana-dashboards
+    kustomize: {}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
