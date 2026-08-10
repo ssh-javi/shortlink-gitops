@@ -24,4 +24,4 @@ webImage:
 # Rollouts will abort + roll back automatically. Set to "0" to recover.
 api:
   env:
-    SIMULATE_ERROR_RATE: "80"
+    SIMULATE_ERROR_RATE: "0"

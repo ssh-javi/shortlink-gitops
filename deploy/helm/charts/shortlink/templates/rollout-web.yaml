@@ -58,7 +58,10 @@ spec:
         - name: nginx-run
           emptyDir: {}
   # Progressive delivery: canary with real traffic split (nginx ingress) and
-  # automatic metric analysis. Steps come from values.yaml (web.canary.steps).
+  # automatic metric analysis. Steps come from values.yaml (web.canary.steps);
+  # the metric gate is an INLINE (blocking) analysis at the 20% step, so the
+  # rollout only shifts more traffic after the AnalysisTemplate gives a
+  # Successful verdict - otherwise it aborts and rolls back automatically.
   # Note: stableService/canaryService live under strategy.canary (NOT inside
   # trafficRouting.nginx) per the Argo Rollouts API.
   strategy:
@@ -68,8 +71,5 @@ spec:
       trafficRouting:
         nginx:
           stableIngress: {{ include "shortlink.fullname" . }}
-      analysis:
-        templates:
-          - templateName: {{ include "shortlink.fullname" . }}-error-rate
       steps:
         {{- toYaml .Values.web.canary.steps | nindent 8 }}
