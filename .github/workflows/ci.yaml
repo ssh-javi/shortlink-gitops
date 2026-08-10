@@ -108,7 +108,7 @@ jobs:
 
       - name: Build & push API image
         id: meta-api
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: app/api
           push: true
@@ -121,7 +121,7 @@ jobs:
 
       - name: Build & push Web image
         id: meta-web
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: app/web
           push: true
