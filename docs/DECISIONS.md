@@ -94,8 +94,9 @@ deja como roadmap.
 **Operación:** `scripts/teardown.sh` respalda la clave de sellado en
 `~/.shortlink/sealed-secrets-key.yaml`; `setup.sh` la restaura si existe, así
 los SealedSecrets commiteados siguen descifrándose aunque el cluster se
-recreé. Rotar la password = re-sellar (ver comentarios en
-`templates/sealedsecret.yaml`).
+recreé. En un cluster/máquina nueva sin el respaldo, `scripts/seal-secret.sh`
+regenera el SealedSecret con la clave del controller actual (también sirve
+para rotar la password).
 
 ---
 

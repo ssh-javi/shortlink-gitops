@@ -176,6 +176,16 @@ scripts/teardown.sh   # respalda la clave de sellado en ~/.shortlink/
 scripts/setup.sh      # la restaura si existe (los SealedSecrets siguen valiendo)
 ```
 
+> ⚠️ **Cluster o máquina nueva sin el respaldo de la clave**: el SealedSecret
+> commiteado está cifrado con la clave del cluster donde se generó. Si el
+> controller nuevo no puede descifrarlo (la API no arranca), re-sella con:
+>
+> ```bash
+> scripts/bootstrap.sh          # asegura kubeseal
+> scripts/seal-secret.sh        # regenera el SealedSecret con tu cluster
+> git add -A && git commit -m "chore(secrets): re-seal" && git push
+> ```
+
 ---
 
 ## 🚢 Puesta en marcha con GitHub
