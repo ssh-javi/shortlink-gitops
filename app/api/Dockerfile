@@ -4,7 +4,7 @@
 # Stage 2: runtime image, minimal and non-root
 # =============================================================================
 
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY src ./src
 RUN npm prune --omit=dev
 
 # =============================================================================
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 
 ENV NODE_ENV=production \
     APP_VERSION=1.0.0
