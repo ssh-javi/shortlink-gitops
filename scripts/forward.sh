@@ -15,7 +15,16 @@ source "$SCRIPT_DIR/common.sh"
 require_cmd kubectl
 
 PID_FILE="/tmp/shortlink-forwards.pids"
-[[ -f "$PID_FILE" ]] && { info "Ya hay forwards activos. Detenlos con: kill \$(cat $PID_FILE)"; exit 0; }
+# Limpia un fichero de PIDs obsoleto (forwards muertos por crash/reinicio)
+if [[ -f "$PID_FILE" ]]; then
+  read -r OLD_P1 OLD_P2 OLD_P3 < "$PID_FILE" 2>/dev/null || true
+  if kill -0 "$OLD_P1" "$OLD_P2" "$OLD_P3" 2>/dev/null; then
+    info "Ya hay forwards activos. Detenlos con: kill \$(cat $PID_FILE)"
+    exit 0
+  fi
+  warn "Fichero de PIDs obsoleto (los forwards ya no están vivos). Limpiándolo..."
+  rm -f "$PID_FILE"
+fi
 
 info "Abriendo port-forwards (3 pestañas para el demo)..."
 kubectl -n argocd port-forward svc/argocd-server 8080:80 >/dev/null &
