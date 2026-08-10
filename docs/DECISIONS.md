@@ -76,16 +76,26 @@ platform engineering).
 
 ---
 
-## ADR-005 · Secretos versionados en Git (solo demo)
+## ADR-005 · Secretos con Sealed Secrets (cifrado en el repo)
 
-**Contexto:** necesitaba un stack reproducible sin dependencias externas.
+**Contexto:** necesitaba un stack reproducible sin dependencias externas,
+pero con **cero secretos en claro en Git** (el repo es público).
 
-**Decisión:** las credenciales demo viven en `values.yaml` (Helm → Secret).
+**Decisión:** **Bitnami Sealed Secrets**. El `Secret` de la app se genera en el
+cluster a partir de un `SealedSecret` commitado, cifrado con la clave pública
+del controller (scope namespace-wide). Nada sensible vive en `values.yaml`.
 
-**Por qué:** para el demo. **Advertencia explícita:** en producción se usaría
-**External Secrets Operator + Vault/SOPS** y el repo no contendría secretos.
+**Por qué:** permite GitOps puro (todo en el repo) sin exponer credenciales ni
+depender de un proveedor externo de secretos (Vault) para el demo.
 
-**Riesgo aceptado:** el cluster es local y desechable.
+**Alternativas:** External Secrets Operator + Vault/SOPS (producción), que se
+deja como roadmap.
+
+**Operación:** `scripts/teardown.sh` respalda la clave de sellado en
+`~/.shortlink/sealed-secrets-key.yaml`; `setup.sh` la restaura si existe, así
+los SealedSecrets commiteados siguen descifrándose aunque el cluster se
+recreé. Rotar la password = re-sellar (ver comentarios en
+`templates/sealedsecret.yaml`).
 
 ---
 
@@ -124,6 +134,28 @@ El *promote* de CI escribe el sha exacto.
 
 **Por qué:** puedes saber qué código corre en producción con solo mirar el tag;
 rollback = apuntar al sha anterior.
+
+---
+
+## ADR-010 · Argo Rollouts para progressive delivery (canary)
+
+**Contexto:** cómo entregar cambios sin riesgo. El Deployment con
+`RollingUpdate` lo hacía, pero sin control fino ni verificación de métricas.
+
+**Decisión:** la web se despliega con un **Rollout de Argo Rollouts**
+(estrategia canary + `trafficRouting` nginx + análisis de métricas).
+
+**Por qué:** progressive delivery de verdad — 20% → 50% → 100% del tráfico,
+pausas configurables y **rollback automático** si la tasa de error de la API
+supera el 5% (AnalysisTemplate + Prometheus). Es el skill más demandado en
+GitOps/Plataforma y el momento más vistoso del demo.
+
+**Por qué solo la web:** es el edge (todo el tráfico pasa por ella). La API
+queda como Deployment; migrarla es un cambio de template trivial.
+
+**Trade-off:** ArgoCD debe ignorar las mutaciones del controller sobre el
+Ingress y los Services (ver `ignoreDifferences` en `01-shortlink.yaml`), y el
+controller `argo-rollouts` es un componente extra que instala `setup.sh`.
 
 ---
 

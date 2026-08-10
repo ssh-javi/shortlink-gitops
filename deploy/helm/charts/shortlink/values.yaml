@@ -45,6 +45,19 @@ web:
   port: 80          # Service port
   targetPort: 8080  # Container port (unprivileged nginx)
   replicaCount: 2
+  # Canary rollout steps (Argo Rollouts). Each setWeight is followed by a
+  # pause that lets the metric analysis (shortlink-error-rate) validate the
+  # canary before more traffic is shifted. If the analysis fails, Argo
+  # Rollouts aborts the rollout and rolls back automatically.
+  canary:
+    steps:
+      - setWeight: 20
+      - pause:
+          duration: 60s
+      - setWeight: 50
+      - pause:
+          duration: 60s
+      - setWeight: 100
   resources:
     requests:
       cpu: 50m
@@ -54,14 +67,13 @@ web:
       memory: 128Mi
 
 # --- PostgreSQL --------------------------------------------------------------
-# DEMO ONLY: the password lives in values.yaml on purpose so the whole stack
-# is reproducible with zero external dependencies. For anything real, use
-# External Secrets / SOPS (see docs/DECISIONS.md).
+# The DB credentials live ONLY inside the SealedSecret
+# (templates/sealedsecret.yaml), encrypted with the cluster's Sealed Secrets
+# controller public key. Nothing secret is stored in Git in plaintext.
 postgres:
   image: postgres:16-alpine
   user: shortlink
   database: shortlink
-  password: shortlink
   storage: 1Gi
   resources:
     requests:

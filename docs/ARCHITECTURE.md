@@ -47,16 +47,18 @@ deploy/
 ├── helm/charts/shortlink/     ← Helm chart de TODA la app
 │   ├── templates/
 │   │   ├── deployment-api.yaml      (probes, securityContext, resources)
-│   │   ├── deployment-web.yaml
+│   │   ├── rollout-web.yaml         (Argo Rollouts: canary + analysis)
+│   │   ├── analysistemplate.yaml    (tasa de error de la API vs Prometheus)
 │   │   ├── deployment-redis.yaml
 │   │   ├── statefulset-postgres.yaml  (volumen persistente 1Gi)
 │   │   ├── service-*.yaml
+│   │   ├── service-web-canary.yaml  (canary service para el split de tráfico)
 │   │   ├── ingress.yaml
 │   │   ├── hpa.yaml                (autoscaling por CPU 70%)
 │   │   ├── pdb.yaml                (mínimo 1 pod disponible)
 │   │   ├── servicemonitor.yaml     (Prometheus Operator)
 │   │   ├── networkpolicy.yaml      (zero-trust, opcional)
-│   │   ├── configmap.yaml / secret.yaml
+│   │   ├── configmap.yaml / sealedsecret.yaml  (Sealed Secrets)
 │   │   └── tests/test-connection.yaml  (helm test)
 │   ├── values.yaml                ← imágenes locales (demo)
 │   └── values.ci.yaml             ← imágenes ghcr.io (producción/GitOps)
@@ -100,9 +102,13 @@ flowchart LR
 4. `promote` actualiza el **estado deseado** (`values.ci.yaml`) y commitea.
    CI jamás ejecuta `kubectl`.
 5. **ArgoCD** reconcilia cada 60s: ve el diff, sincroniza el Helm chart y
-   dispara un rollout (Deployment con estrategia `RollingUpdate`, probes
-   protegen el cambio).
-6. Si el nuevo pod falla las probes, **k8s** no corta tráfico; si algo grave
+   dispara un rollout. La web usa un **Rollout de Argo Rollouts** con
+   estrategia **canary**: 20% → 50% → 100% del tráfico con pausas.
+6. Durante las pausas, el **AnalysisTemplate** (`shortlink-error-rate`)
+   consulta a Prometheus la tasa de error de la API: si supera el 5% durante
+   N intervalos, el canary se **aborta y hace rollback automático** a la
+   versión estable. El split de tráfico es real (ingress nginx + `setWeight`).
+7. Si el nuevo pod falla las probes, **k8s** no corta tráfico; si algo grave
    pasa, `git revert` = rollback instantáneo.
 
 ---
@@ -143,7 +149,7 @@ flowchart LR
 | Imágenes | Multi-stage, solo deps de producción, `USER non-root` |
 | Pods | `securityContext`: drop `ALL` capabilities, `readOnlyRootFilesystem` (API), `runAsNonRoot` |
 | Red | NetworkPolicy default-deny (opt-in, requiere `--cni=cilium`) |
-| Secretos | Versionados para el demo (ver decisión ADR-005) |
+| Secretos | **Sealed Secrets**: cifrados con la clave pública del controller, nada en claro en Git (ADR-005) |
 | Supply chain | Trivy (HIGH/CRITICAL) en CI, imágenes inmutables por sha |
 | API | helmet, rate-limit en `/api/links`, validación estricta de URLs |
 

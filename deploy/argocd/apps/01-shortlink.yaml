@@ -35,3 +35,15 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+  # Argo Rollouts muta el ingress (annotations canary) y los selectors de los
+  # servicios (rollouts-pod-template-hash) durante un canary. ArgoCD ignora
+  # esas diferencias para no revertir la estrategia en mitad del despliegue.
+  ignoreDifferences:
+    - group: networking.k8s.io
+      kind: Ingress
+      jsonPointers:
+        - /metadata/annotations
+    - group: ""
+      kind: Service
+      jsonPointers:
+        - /spec/selector

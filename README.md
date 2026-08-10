@@ -6,9 +6,18 @@
 
 Un acortador de URLs (API + Web + PostgreSQL + Redis) desplegado con un flujo
 **GitOps** de extremo a extremo: **GitHub Actions** → **ArgoCD** → **Kubernetes**,
-observable con **Prometheus + Grafana** y alertas automáticas.
+observable con **Prometheus + Grafana**, alertas automáticas y despliegues
+**canary** con análisis de métricas.
 
-`CI/CD` · `Kubernetes` · `GitOps (ArgoCD)` · `Helm` · `Observabilidad` · `Seguridad` · `$0`
+`CI/CD` · `Kubernetes` · `GitOps (ArgoCD)` · `Helm` · `Argo Rollouts` · `Sealed Secrets` · `Observabilidad` · `$0`
+
+[![CI](https://github.com/ssh-javi/shortlink-gitops/actions/workflows/ci.yaml/badge.svg)](https://github.com/ssh-javi/shortlink-gitops/actions/workflows/ci.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.26%2B-326ce5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Helm](https://img.shields.io/badge/Helm-v3-0f1689?logo=helm&logoColor=white)](https://helm.sh/)
+[![ArgoCD](https://img.shields.io/badge/ArgoCD-GitOps-ef7b4d?logo=argo&logoColor=white)](https://argo-cd.readthedocs.io/)
+[![Argo Rollouts](https://img.shields.io/badge/Argo%20Rollouts-Canary-ef7b4d?logo=argo&logoColor=white)](https://argoproj.github.io/argo-rollouts/)
+[![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
 </div>
 
@@ -140,6 +149,33 @@ scripts/teardown.sh          # borra el cluster y los forwards
    versión anterior automáticamente.
 5. **Self-healing**: si alguien borra un pod a mano, ArgoCD lo restaura.
 
+### Canary con Argo Rollouts (progressive delivery)
+
+El frontend (web) se despliega con un **Rollout** en vez de un Deployment:
+
+1. CI promueve la nueva versión en Git → ArgoCD sincroniza → Argo Rollouts
+   lanza un **canary**: 20% → 50% → 100% del tráfico, con pausas entre pasos.
+2. Durante cada pausa, un **AnalysisTemplate** consulta a Prometheus la tasa de
+   error de la API. Si supera el 5%, el rollout se **aborta solo** y vuelve a la
+   versión estable (rollback automático).
+3. El split de tráfico es real: el ingress nginx enruta el peso entre los
+   servicios estable y canary (`setWeight`).
+
+```bash
+kubectl argo rollouts get rollout shortlink-web -n shortlink   # ver el canary en vivo
+```
+
+### Secretos cifrados con Sealed Secrets
+
+Las credenciales de la base de datos ya no viven en claro en Git: están
+cifradas con la clave pública del controller de **Sealed Secrets** y solo se
+descifran dentro del cluster.
+
+```bash
+scripts/teardown.sh   # respalda la clave de sellado en ~/.shortlink/
+scripts/setup.sh      # la restaura si existe (los SealedSecrets siguen valiendo)
+```
+
 ---
 
 ## 🚢 Puesta en marcha con GitHub
@@ -208,7 +244,7 @@ un `git daemon` local y construye las imágenes desde el código fuente.
   `drop: [ALL]`.
 - **HPA** (autoscaling por CPU) + **PDB** (mínimo 1 pod disponible).
 - `NetworkPolicy` de zero-trust incluida (opcional, requiere CNI con políticas).
-- Secretos "demo-only" versionados (ver decisión en `docs/DECISIONS.md`).
+- **Secretos cifrados con Sealed Secrets**: nada sensible en claro en el repo.
 
 ---
 
@@ -252,10 +288,10 @@ un `git daemon` local y construye las imágenes desde el código fuente.
 ## 🛣️ Roadmap
 
 - [x] CI/CD + GitOps + Observabilidad (este proyecto)
+- [x] Argo Rollouts (canary por análisis de métricas con rollback automático)
+- [x] Secretos cifrados con Sealed Secrets
 - [ ] Terraform para provisionar un cluster cloud (free tier) y migrar el demo
-- [ ] Secretos con External Secrets / SOPS
 - [ ] Pruebas de carga (k6) + demo de HPA escalando
-- [ ] ArgoCD Rollouts (canary por análisis de métricas)
 
 ---
 

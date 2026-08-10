@@ -53,18 +53,41 @@ docker build -q -t shortlink-api:dev "$PROJECT_ROOT/app/api"   | tail -1
 docker build -q -t shortlink-web:dev "$PROJECT_ROOT/app/web"   | tail -1
 ok "Imágenes: shortlink-api:dev, shortlink-web:dev"
 
-# --- 3. Namespaces + ArgoCD --------------------------------------------------
-info "=== Instalando ArgoCD (Helm) ==="
+# --- 3. Namespaces + ArgoCD + controllers ------------------------------------
+info "=== Instalando ArgoCD + Argo Rollouts + Sealed Secrets (Helm) ==="
 kubectl create namespace "$ARGOCD_NAMESPACE" >/dev/null 2>&1 || true
 kubectl create namespace "$APP_NAMESPACE"    >/dev/null 2>&1 || true
 kubectl create namespace "$MONITORING_NAMESPACE" >/dev/null 2>&1 || true
 
 helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
+helm repo add sealed-secrets https://bitnami.github.io/sealed-secrets >/dev/null 2>&1 || true
 helm repo update >/dev/null 2>&1 || true
+
 helm upgrade --install argocd argo/argo-cd \
   --namespace "$ARGOCD_NAMESPACE" \
   --values "$PROJECT_ROOT/deploy/argocd/values.yaml" \
   --wait --timeout 5m
+
+# Argo Rollouts: controller para las estrategias canary del Rollout de la web.
+# Se instala ANTES de aplicar las apps (el CRD del Rollout debe existir).
+helm upgrade --install argo-rollouts argo/argo-rollouts \
+  --namespace argo-rollouts --create-namespace \
+  --wait --timeout 3m
+
+# Sealed Secrets: controller que descifra los SealedSecrets del repo.
+helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \
+  --namespace kube-system \
+  --wait --timeout 3m
+
+# Si existe un respaldo de la clave de sellado (de un teardown anterior),
+# lo restauramos para que los SealedSecrets commiteados sigan descifrándose
+# aunque el cluster se haya recreado.
+SEALED_KEY_BACKUP="${SEALED_KEY_BACKUP:-$HOME/.shortlink/sealed-secrets-key.yaml}"
+if [[ -f "$SEALED_KEY_BACKUP" ]]; then
+  kubectl apply -f "$SEALED_KEY_BACKUP" >/dev/null
+  kubectl -n kube-system rollout restart deployment sealed-secrets >/dev/null 2>&1 || true
+  ok "Clave de Sealed Secrets restaurada desde $SEALED_KEY_BACKUP"
+fi
 
 # Esperar a que el servidor de ArgoCD esté levantado
 wait_for "ArgoCD server" 300 "kubectl -n $ARGOCD_NAMESPACE get deployment argocd-server -o jsonpath='{.status.readyReplicas}' | grep -q 1"

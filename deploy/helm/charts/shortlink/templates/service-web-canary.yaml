@@ -1,0 +1,18 @@
+# Canary service for the web Rollout. Argo Rollouts updates its selector
+# (rollouts-pod-template-hash) while a canary is in progress, so nginx
+# ingress can route a percentage of traffic to the canary pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "shortlink.fullname" . }}-web-canary
+  labels:
+    {{- include "shortlink.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "shortlink.webSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.web.port }}
+      targetPort: http

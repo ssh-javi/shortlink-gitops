@@ -101,14 +101,40 @@ git revert HEAD --no-edit        # vuelve a la versión anterior
 ```
 - Muestra en ArgoCD cómo el estado deseado vuelve atrás y el cluster lo sigue.
 
-### 7. Alertas (10:30 – 11:15)
+### 7. Canary con Argo Rollouts (10:30 – 11:45) ⭐
+> "Y para no romper nada, las versiones nuevas llegan con un **canary**:
+> Argo Rollouts envía primero el 20% del tráfico, mide la tasa de error en
+> Prometheus y solo sube al 50% y 100% si todo va bien. Si algo falla, hace
+> rollback solo."
+
+- Termina el rollback de la sección anterior, sube una versión nueva visible
+  (p. ej. cambia el badge a **v3** en `index.html`) y haz push.
+- Mientras CI corre, abre una terminal con:
+  ```bash
+  kubectl argo rollouts get rollout shortlink-web -n shortlink -w
+  ```
+- Muestra cómo el peso sube 20% → 50% → 100% y cómo la columna de análisis
+  (`ANALYSIS`) marca `Successful` en cada paso.
+- **Demo del rollback automático** (opcional, impactante):
+  ```bash
+  # Rompe la API a propósito (500s) mientras el canary mide…
+  kubectl -n shortlink exec deploy/shortlink-api -- sh -c \
+    'kill -9 1'   # reinicia todos los pods de API
+  ```
+  o sube una versión con un error deliberado; Argo Rollouts aborta el canary
+  y vuelve a la estable automáticamente (`kubectl argo rollouts get rollout`
+  mostrará `Degraded` → `Healthy`).
+- Explica: *"la decisión de promover la hace el **sistema**, no un humano —
+  la política de despliegue vive en Git como código."*
+
+### 8. Alertas (11:45 – 12:20)
 > "También configuré alertas. Si la tasa de error sube del 5%, o la latencia
 > p95 pasa de 500ms, Prometheus dispara una alerta."
 
 - Muestra `deploy/monitoring/kube-prometheus-stack-values.yaml` (las reglas).
 - Opcional: en Grafana → *Alerting* muestra las reglas cargadas.
 
-### 8. Cierre (11:15 – 12:00)
+### 9. Cierre (12:20 – 13:05)
 > "Resumen: CI/CD automático, despliegues GitOps con rollback instantáneo,
 > observabilidad de negocio e infraestructura, seguridad desde la imagen hasta
 > el pod, y todo con herramientas open source y costo cero. El código está en

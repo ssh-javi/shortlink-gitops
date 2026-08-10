@@ -1,0 +1,25 @@
+# AnalysisTemplate used by the web Rollout during canary steps.
+# If the API error rate (last 2m) stays above 5% for `failureLimit`
+# consecutive intervals, Argo Rollouts aborts the canary and rolls back
+# to the stable version automatically.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ include "shortlink.fullname" . }}-error-rate
+  labels:
+    {{- include "shortlink.labels" . | nindent 4 }}
+spec:
+  metrics:
+    - name: error-rate
+      interval: 30s
+      # Error rate = 5xx requests / total requests. clamp_min avoids a
+      # division by zero when there is no traffic (0 error rate = success).
+      successCondition: result[0] <= 0.05
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://observability-kube-prometh-prometheus.monitoring:9090
+          query: |
+            sum(rate(http_requests_total{status=~"5.."}[2m]))
+            /
+            clamp_min(sum(rate(http_requests_total[2m])), 1)
