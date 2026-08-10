@@ -10,6 +10,13 @@ function parsePort(value, fallback) {
   return Number.isInteger(n) && n > 0 && n < 65536 ? n : fallback;
 }
 
+// Clamp an integer env var into [min, max]; falls back on unparsable input.
+function clampInt(value, fallback, min, max) {
+  const n = Number.parseInt(value, 10);
+  if (!Number.isInteger(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: parsePort(process.env.PORT, 3000),
@@ -22,6 +29,10 @@ const config = {
   baseUrl: process.env.BASE_URL || 'http://localhost:8081',
   logLevel: process.env.LOG_LEVEL || 'info',
   version: process.env.APP_VERSION || 'dev',
+  // Chaos-engineering hook: % of business requests that fail with 500.
+  // Used by the canary demo to prove Argo Rollouts' automatic rollback.
+  // 0 = disabled. Health/metrics endpoints are never affected.
+  simulateErrorRate: clampInt(process.env.SIMULATE_ERROR_RATE, 0, 0, 100),
 };
 
 module.exports = { config };

@@ -11,7 +11,10 @@ metadata:
 spec:
   metrics:
     - name: error-rate
-      interval: 30s
+      # Demo-tuned: 20s interval + failureLimit 2 -> a bad canary is rolled
+      # back in ~40s. For production, consider longer windows (e.g. 60s
+      # interval, failureLimit 3, [5m] range).
+      interval: 20s
       # Error rate = 5xx requests / total requests. clamp_min avoids a
       # division by zero when there is no traffic. The trailing "or vector(0)"
       # makes the query return 0 when Prometheus has NO series for the window
@@ -19,12 +22,12 @@ spec:
       # Argo Rollouts fail with "slice index out of range" and abort the
       # rollout even though nothing is broken.
       successCondition: result[0] <= 0.05
-      failureLimit: 3
+      failureLimit: 2
       provider:
         prometheus:
           address: http://observability-kube-prometh-prometheus.monitoring:9090
           query: |
-            sum(rate(http_requests_total{status=~"5.."}[2m]))
+            sum(rate(http_requests_total{status=~"5.."}[1m]))
             /
-            clamp_min(sum(rate(http_requests_total[2m])), 1)
+            clamp_min(sum(rate(http_requests_total[1m])), 1)
             or vector(0)

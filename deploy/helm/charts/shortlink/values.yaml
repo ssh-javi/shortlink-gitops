@@ -29,6 +29,8 @@ api:
     SLUG_LENGTH: "7"
     # Used only to build the "shortUrl" shown by the API response.
     BASE_URL: http://localhost:8081
+    # % of business requests that fail with 500 (chaos demo). 0 = disabled.
+    SIMULATE_ERROR_RATE: "0"
   resources:
     requests:
       cpu: 100m

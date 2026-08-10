@@ -27,6 +27,23 @@ function createApp({ db, cache }) {
   // Readiness / liveness
   app.use('/health', healthRouter({ db, cache }));
 
+  // Chaos-engineering hook: simulates 5xx for SIMULATE_ERROR_RATE% of
+  // business requests (health/metrics excluded so probes + scraping keep
+  // working). Used by the canary rollback demo. 0 = disabled.
+  app.use((req, _res, next) => {
+    if (
+      config.simulateErrorRate > 0 &&
+      !req.path.startsWith('/health') &&
+      !req.path.startsWith('/metrics') &&
+      Math.random() * 100 < config.simulateErrorRate
+    ) {
+      const err = new Error('simulated failure (SIMULATE_ERROR_RATE)');
+      err.statusCode = 500;
+      return next(err);
+    }
+    return next();
+  });
+
   // API (rate-limited to protect the database from abusive bursts)
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

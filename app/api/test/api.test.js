@@ -156,3 +156,34 @@ describe('GET /api/links', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('failure injection (SIMULATE_ERROR_RATE)', () => {
+  const { config } = require('../src/config');
+
+  afterEach(() => {
+    config.simulateErrorRate = 0;
+  });
+
+  test('returns 500 for business requests when the rate is 100', async () => {
+    config.simulateErrorRate = 100;
+    const app = createApp({ db: fakeDb(), cache: fakeCache() });
+    const res = await request(app).get('/api/links');
+    expect(res.status).toBe(500);
+  });
+
+  test('does not affect the health endpoint', async () => {
+    config.simulateErrorRate = 100;
+    const app = createApp({ db: fakeDb(), cache: fakeCache() });
+    const res = await request(app).get('/health');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ok');
+  });
+
+  test('does not affect the metrics endpoint', async () => {
+    config.simulateErrorRate = 100;
+    const app = createApp({ db: fakeDb(), cache: fakeCache() });
+    const res = await request(app).get('/metrics');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('http_requests_total');
+  });
+});

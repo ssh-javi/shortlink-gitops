@@ -9,3 +9,6 @@ data:
   LOG_LEVEL: {{ .Values.api.env.LOG_LEVEL | quote }}
   SLUG_LENGTH: {{ .Values.api.env.SLUG_LENGTH | quote }}
   BASE_URL: {{ .Values.api.env.BASE_URL | quote }}
+  # Chaos-engineering hook (0 = disabled). Set > 0 to simulate 5xx and demo
+  # the canary rollback. Health/metrics endpoints are never affected.
+  SIMULATE_ERROR_RATE: {{ .Values.api.env.SIMULATE_ERROR_RATE | default "0" | quote }}
